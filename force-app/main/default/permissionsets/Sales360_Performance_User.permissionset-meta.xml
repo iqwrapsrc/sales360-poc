@@ -51,26 +51,10 @@
     </objectPermissions>
 
     <!-- Field Permissions for EK_Sales360_Cache__c -->
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>EK_Sales360_Cache__c.User_Id__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>EK_Sales360_Cache__c.Fiscal_Period__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>EK_Sales360_Cache__c.Response_Type__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>EK_Sales360_Cache__c.Schema_Version__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
+    <!-- NOTE: Required fields (User_Id__c, Fiscal_Period__c, Response_Type__c, -->
+    <!-- Schema_Version__c, Generated_At__c, Expires_At__c, Generation_Source__c) -->
+    <!-- are NOT listed here. Salesforce auto-grants access to required fields -->
+    <!-- and rejects explicit field permissions on them at deploy time. -->
     <fieldPermissions>
         <editable>true</editable>
         <field>EK_Sales360_Cache__c.JSON_Payload__c</field>
@@ -78,22 +62,7 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
-        <field>EK_Sales360_Cache__c.Generated_At__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>EK_Sales360_Cache__c.Expires_At__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
         <field>EK_Sales360_Cache__c.Hit_Count__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>EK_Sales360_Cache__c.Generation_Source__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
@@ -110,7 +79,6 @@
     <!-- Application access -->
     <applicationVisibilities>
         <application>Sales360_App</application>
-        <default>false</default>
         <visible>true</visible>
     </applicationVisibilities>
 

@@ -9,7 +9,7 @@
  */
 
 // === EDIT THIS LINE: Replace with your actual SF user ID (Id starts with 005) ===
-String myUserId = '005XXXXXXXXXXXXXXXX';
+String myUserId = '005g5000006DGJdAAO';
 
 // Validate
 if (!myUserId.startsWith('005') || myUserId.contains('XXX')) {

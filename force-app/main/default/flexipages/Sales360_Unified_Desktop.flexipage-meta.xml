@@ -1,59 +1,52 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <FlexiPage xmlns="http://soap.sforce.com/2006/04/metadata">
-    <description>Sales360 Unified Desktop - landing page for Sales Executives showing KPI Bar + Portfolio Summary + Opportunity Spotlight panels</description>
     <flexiPageRegions>
         <itemInstances>
             <componentInstance>
                 <componentName>c:demoPersonaSelector</componentName>
-                <identifier>demoPersonaSelector_region_top</identifier>
+                <identifier>demoPersonaSelector_col1</identifier>
             </componentInstance>
         </itemInstances>
-        <name>top</name>
-        <type>Region</type>
-    </flexiPageRegions>
-    <flexiPageRegions>
         <itemInstances>
             <componentInstance>
                 <componentName>c:myPerformanceKpiBar</componentName>
-                <identifier>myPerformanceKpiBar_region_kpiBar</identifier>
+                <identifier>myPerformanceKpiBar_col1</identifier>
                 <componentInstanceProperties>
                     <name>persona</name>
                     <value></value>
                 </componentInstanceProperties>
             </componentInstance>
         </itemInstances>
-        <name>kpiBar</name>
-        <type>Region</type>
-    </flexiPageRegions>
-    <flexiPageRegions>
         <itemInstances>
             <componentInstance>
                 <componentName>c:portfolioSummaryPanel</componentName>
-                <identifier>portfolioSummaryPanel_region_left</identifier>
+                <identifier>portfolioSummaryPanel_col1</identifier>
                 <componentInstanceProperties>
                     <name>persona</name>
                     <value></value>
                 </componentInstanceProperties>
             </componentInstance>
         </itemInstances>
-        <name>left</name>
+        <name>column1</name>
         <type>Region</type>
     </flexiPageRegions>
     <flexiPageRegions>
         <itemInstances>
             <componentInstance>
                 <componentName>c:opportunitySpotlightPanel</componentName>
-                <identifier>opportunitySpotlightPanel_region_right</identifier>
+                <identifier>opportunitySpotlightPanel_col2</identifier>
                 <componentInstanceProperties>
                     <name>persona</name>
                     <value></value>
                 </componentInstanceProperties>
             </componentInstance>
         </itemInstances>
-        <name>right</name>
+        <name>column2</name>
         <type>Region</type>
     </flexiPageRegions>
     <masterLabel>Sales360 Unified Desktop</masterLabel>
-    <pageTemplate>flexipage:appHomeTemplateDesktop2_2Regions</pageTemplate>
+    <template>
+        <name>flexipage:appHomeTemplateTwoColumns</name>
+    </template>
     <type>AppPage</type>
 </FlexiPage>

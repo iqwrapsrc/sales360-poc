@@ -136,7 +136,7 @@ public with sharing class Sales360DataService {
                    + 'FROM ' + ciName + ' '
                    + 'WHERE agency_id__c IN (' + inClause + ') '
                    + 'AND fiscal_year__c = \'' + periodParts.get('year') + '\' '
-                   + 'AND fiscal_quarter__c = ' + periodParts.get('quarter');
+                   + 'AND fiscal_quarter__c = \'' + periodParts.get('quarter') + '\'';
 
         ConnectApi.CdpQueryInput input = new ConnectApi.CdpQueryInput();
         input.sql = sql;

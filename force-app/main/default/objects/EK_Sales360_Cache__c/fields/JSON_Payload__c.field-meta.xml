@@ -5,7 +5,6 @@
     <externalId>false</externalId>
     <label>JSON Payload</label>
     <length>131072</length>
-    <required>true</required>
     <trackTrending>false</trackTrending>
     <type>LongTextArea</type>
     <visibleLines>10</visibleLines>

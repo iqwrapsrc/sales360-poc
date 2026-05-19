@@ -117,7 +117,7 @@ public with sharing class KpiAggregationService {
                    + 'FROM ' + ciName + ' '
                    + 'WHERE agency_id__c IN (' + inClause + ') '
                    + 'AND fiscal_year__c = \'' + period.get('year') + '\' '
-                   + 'AND fiscal_quarter__c = ' + period.get('quarter');
+                   + 'AND fiscal_quarter__c = \'' + period.get('quarter') + '\'';
 
         ConnectApi.CdpQueryInput input = new ConnectApi.CdpQueryInput();
         input.sql = sql;
