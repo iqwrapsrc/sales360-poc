@@ -3,12 +3,15 @@
  *               L1: Platform Cache (org partition 'Sales360') - sub-second access
  *               L2: EK_Sales360_Cache__c custom object - persistent across app server restarts
  *
- *               Cache keys follow the format: 'userId|fiscalPeriod|responseType'
+ *               L1 key format: alphanumeric only (Platform Cache restriction)
+ *               L2 key format: userId|fiscalPeriod|responseType (human-readable, stored in Name)
+ *
  *               Different response types can have different TTL values.
  *
  * @author       Anup Chandran (Emirates Group IT)
  * @phase        Sales360 PoC - Phase 7
  * @since        May 2026
+ * @updated      May 2026 - Fixed L1 key to satisfy Platform Cache alphanumeric restriction
  */
 public with sharing class Sales360CacheService {
 
@@ -21,27 +24,24 @@ public with sharing class Sales360CacheService {
     @TestVisible
     private static final String CACHE_PARTITION = 'local.Sales360';
 
+    // Platform Cache minimum TTL is 300 seconds; we use 3600 (1 hour)
     private static final Integer L1_TTL_SECONDS = 3600;
 
     /**
      * Looks up a cached response. Checks L1 (Platform Cache) first, then L2 (Custom Object).
-     *
-     * @param userId        The owner user ID (e.g., 'USER_001')
-     * @param fiscalPeriod  The fiscal period (e.g., 'FY26Q1')
-     * @param responseType  One of MY_PERFORMANCE_KPI, PORTFOLIO_SUMMARY, OPPORTUNITY_SPOTLIGHT
-     * @return              Cached JSON string, or null if no valid cache entry exists
      */
     public static String getCached(String userId, String fiscalPeriod,
                                     String responseType) {
-        String cacheKey = buildKey(userId, fiscalPeriod, responseType);
+        String l1Key = buildL1Key(userId, fiscalPeriod, responseType);
+        String l2Key = buildKey(userId, fiscalPeriod, responseType);
 
-        // L1: Platform Cache
+        // L1: Platform Cache (uses alphanumeric key)
         try {
             Cache.OrgPartition partition = Cache.Org.getPartition(CACHE_PARTITION);
             if (partition != null) {
-                Object cached = partition.get(cacheKey);
+                Object cached = partition.get(l1Key);
                 if (cached != null) {
-                    incrementHitCount(cacheKey);
+                    incrementHitCount(l2Key);
                     return (String) cached;
                 }
             }
@@ -49,11 +49,11 @@ public with sharing class Sales360CacheService {
             // Platform Cache not configured - fall through to L2
         }
 
-        // L2: Custom Object
+        // L2: Custom Object (uses human-readable pipe-separated key as Name)
         List<EK_Sales360_Cache__c> records = [
             SELECT JSON_Payload__c, Expires_At__c, Hit_Count__c
             FROM EK_Sales360_Cache__c
-            WHERE Name = :cacheKey
+            WHERE Name = :l2Key
               AND Expires_At__c > :Datetime.now()
               AND Is_Stale__c = false
             LIMIT 1
@@ -67,11 +67,11 @@ public with sharing class Sales360CacheService {
         try {
             Cache.OrgPartition partition = Cache.Org.getPartition(CACHE_PARTITION);
             if (partition != null) {
-                partition.put(cacheKey, records[0].JSON_Payload__c, L1_TTL_SECONDS);
+                partition.put(l1Key, records[0].JSON_Payload__c, L1_TTL_SECONDS);
             }
         } catch (Exception ignored) {}
 
-        incrementHitCount(cacheKey);
+        incrementHitCount(l2Key);
         return records[0].JSON_Payload__c;
     }
 
@@ -94,16 +94,17 @@ public with sharing class Sales360CacheService {
                               Long generationTimeMs, String source,
                               Integer ttlHoursOverride) {
 
-        String cacheKey = buildKey(userId, fiscalPeriod, responseType);
+        String l1Key = buildL1Key(userId, fiscalPeriod, responseType);
+        String l2Key = buildKey(userId, fiscalPeriod, responseType);
         Datetime now = Datetime.now();
         Integer ttlHours = (ttlHoursOverride != null) ? ttlHoursOverride :
                            ('MY_PERFORMANCE_KPI'.equals(responseType) ? KPI_TTL_HOURS :
                             DEFAULT_TTL_HOURS);
         Datetime expiry = now.addHours(ttlHours);
 
-        // L2: Upsert custom object
+        // L2: Upsert custom object (Name field allows pipe-separated key)
         EK_Sales360_Cache__c record = new EK_Sales360_Cache__c(
-            Name = cacheKey,
+            Name = l2Key,
             User_Id__c = userId,
             Fiscal_Period__c = fiscalPeriod,
             Response_Type__c = responseType,
@@ -117,20 +118,20 @@ public with sharing class Sales360CacheService {
             Is_Stale__c = false
         );
 
-        // Upsert by Name (External ID would be better but Name works as key)
+        // Upsert by Name
         List<EK_Sales360_Cache__c> existing = [
-            SELECT Id FROM EK_Sales360_Cache__c WHERE Name = :cacheKey LIMIT 1
+            SELECT Id FROM EK_Sales360_Cache__c WHERE Name = :l2Key LIMIT 1
         ];
         if (!existing.isEmpty()) {
             record.Id = existing[0].Id;
         }
         upsert record;
 
-        // L1: Platform Cache (1 hour to encourage L2 verification)
+        // L1: Platform Cache (uses alphanumeric key)
         try {
             Cache.OrgPartition partition = Cache.Org.getPartition(CACHE_PARTITION);
             if (partition != null) {
-                partition.put(cacheKey, jsonPayload, L1_TTL_SECONDS);
+                partition.put(l1Key, jsonPayload, L1_TTL_SECONDS);
             }
         } catch (Exception ignored) {}
     }
@@ -140,19 +141,20 @@ public with sharing class Sales360CacheService {
      */
     public static void invalidate(String userId, String fiscalPeriod,
                                    String responseType) {
-        String cacheKey = buildKey(userId, fiscalPeriod, responseType);
+        String l1Key = buildL1Key(userId, fiscalPeriod, responseType);
+        String l2Key = buildKey(userId, fiscalPeriod, responseType);
 
         // L1: Remove from Platform Cache
         try {
             Cache.OrgPartition partition = Cache.Org.getPartition(CACHE_PARTITION);
             if (partition != null) {
-                partition.remove(cacheKey);
+                partition.remove(l1Key);
             }
         } catch (Exception ignored) {}
 
         // L2: Mark as stale (preserves history for telemetry)
         List<EK_Sales360_Cache__c> existing = [
-            SELECT Id FROM EK_Sales360_Cache__c WHERE Name = :cacheKey LIMIT 1
+            SELECT Id FROM EK_Sales360_Cache__c WHERE Name = :l2Key LIMIT 1
         ];
         if (!existing.isEmpty()) {
             existing[0].Is_Stale__c = true;
@@ -160,18 +162,38 @@ public with sharing class Sales360CacheService {
         }
     }
 
+    /**
+     * Builds the human-readable L2 cache key used as the Name of EK_Sales360_Cache__c.
+     * Format: userId|fiscalPeriod|responseType (e.g., USER_001|FY26Q1|PORTFOLIO_SUMMARY)
+     */
     @TestVisible
     private static String buildKey(String userId, String fiscalPeriod,
                                     String responseType) {
         return userId + '|' + fiscalPeriod + '|' + responseType;
     }
 
-    private static void incrementHitCount(String cacheKey) {
+    /**
+     * Builds the L1 cache key for Platform Cache (alphanumeric only).
+     * Platform Cache keys cannot contain underscores, pipes, or other special characters.
+     * Strips all non-alphanumeric characters from the composite key.
+     *
+     * Example: 'USER_001|FY26Q1|PORTFOLIO_SUMMARY' -> 'USER001FY26Q1PORTFOLIOSUMMARY'
+     */
+    @TestVisible
+    private static String buildL1Key(String userId, String fiscalPeriod,
+                                      String responseType) {
+        String raw = (userId == null ? '' : userId)
+                   + (fiscalPeriod == null ? '' : fiscalPeriod)
+                   + (responseType == null ? '' : responseType);
+        return raw.replaceAll('[^a-zA-Z0-9]', '');
+    }
+
+    private static void incrementHitCount(String l2Key) {
         // Best-effort increment - fire and forget
         try {
             List<EK_Sales360_Cache__c> existing = [
                 SELECT Id, Hit_Count__c FROM EK_Sales360_Cache__c
-                WHERE Name = :cacheKey LIMIT 1
+                WHERE Name = :l2Key LIMIT 1
             ];
             if (!existing.isEmpty()) {
                 Decimal current = existing[0].Hit_Count__c == null ?
