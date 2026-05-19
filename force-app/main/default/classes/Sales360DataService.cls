@@ -3,12 +3,10 @@
  *               Queries DMOs via direct SOQL and Calculated Insights via ConnectApi.CdpQuery.
  *               Returns structured data ready for JSON serialization and Prompt Template input.
  *
- *               NOTE: Field API names below assume Phase 5 DMO/CI naming. If your DMO field
- *               names differ, update the SOQL/SQL strings accordingly.
- *
  * @author       Anup Chandran (Emirates Group IT)
  * @phase        Sales360 PoC - Phase 7
  * @since        May 2026
+ * @updated      May 2026 - Aligned OD_Pair__dlm field references to deployed schema
  */
 public with sharing class Sales360DataService {
 
@@ -21,15 +19,10 @@ public with sharing class Sales360DataService {
     /**
      * Fetches the top 20 agencies for the given owner, joined with aggregate metrics from
      * 3 Calculated Insights (Flown Revenue, Flown PAX, Target Attainment).
-     *
-     * @param ownerUserId    The owner user ID (mapped via UserMappingService)
-     * @param fiscalPeriod   E.g., 'FY26Q1'
-     * @return               List of agency data maps, ready for JSON serialization
      */
     public static List<Map<String, Object>> getAgencyPortfolioData(
             String ownerUserId, String fiscalPeriod) {
 
-        // Step 1: Query agency master from DMO via SOQL
         List<SObject> agencies = Database.query(
             'SELECT agency_id__c, agency_name__c, city__c, country__c, ' +
             'incentives_achieved__c, incentives_total__c ' +
@@ -42,13 +35,11 @@ public with sharing class Sales360DataService {
             return new List<Map<String, Object>>();
         }
 
-        // Step 2: Build set of agency IDs for CIO filtering
         Set<String> agencyIds = new Set<String>();
         for (SObject a : agencies) {
             agencyIds.add((String) a.get('agency_id__c'));
         }
 
-        // Step 3: Query CIOs via ConnectApi.CdpQuery
         Map<String, String> periodParts = parseFiscalPeriod(fiscalPeriod);
         Map<String, Decimal> revenueMap =
             queryCI(agencyIds, periodParts,
@@ -60,7 +51,6 @@ public with sharing class Sales360DataService {
             queryCI(agencyIds, periodParts,
                     'FY_Target_Attainment_By_Agency__cio', 'target_attainment_ratio__c');
 
-        // Step 4: Join master with CI aggregates in memory
         List<Map<String, Object>> result = new List<Map<String, Object>>();
         for (SObject a : agencies) {
             String agencyId = (String) a.get('agency_id__c');
@@ -80,16 +70,17 @@ public with sharing class Sales360DataService {
     }
 
     /**
-     * Fetches the top 6 OD pairs for opportunity spotlight, joined with market share CI data.
+     * Fetches the top 6 OD pairs for opportunity spotlight.
+     * Field references aligned to deployed OD_Pair__dlm schema (verified May 2026).
      */
     public static List<Map<String, Object>> getOpportunitySpotlightData(
             String ownerUserId, String fiscalPeriod) {
 
-        // Query OD pairs that the owner's agencies operate on
-        // (For PoC: just query top 6 OD pairs by criticality from the OD_Pair__dlm)
         List<SObject> odPairs = Database.query(
-            'SELECT od_pair_id__c, region_pair__c, primary_airport__c, ' +
-            'secondary_airport__c, route_count__c ' +
+            'SELECT od_pair_id__c, display_name__c, region_pair__c, ' +
+            'origin_airport__c, origin_city__c, ' +
+            'destination_airport__c, destination_city__c, ' +
+            'haul_type__c, is_hub_route__c ' +
             'FROM OD_Pair__dlm ' +
             'LIMIT ' + SPOTLIGHT_OD_PAIR_LIMIT
         );
@@ -98,34 +89,23 @@ public with sharing class Sales360DataService {
             return new List<Map<String, Object>>();
         }
 
-        // Query market share CI (joined and structured for Prompt Template input)
-        // Detailed implementation: query EK_Market_Share_By_OD_Pair__cio for these od_pair_ids
-        // Build comprehensive od_pair_id-keyed map with EK share, competitor 1/2 data, forecasts
-        // For brevity, this skeleton returns the OD pair master + placeholder for CI data
-
-        Set<String> odPairIds = new Set<String>();
-        for (SObject p : odPairs) {
-            odPairIds.add((String) p.get('od_pair_id__c'));
-        }
-
-        // Build result list - in production code, join with market share CI data here
         List<Map<String, Object>> result = new List<Map<String, Object>>();
         for (SObject p : odPairs) {
             result.add(new Map<String, Object>{
-                'od_pair_id'      => (String) p.get('od_pair_id__c'),
-                'region_pair'     => (String) p.get('region_pair__c'),
-                'primary_airport' => (String) p.get('primary_airport__c'),
-                'secondary_airport' => (String) p.get('secondary_airport__c'),
-                'route_count'     => p.get('route_count__c')
-                // Additional fields from market share CI populated here
+                'od_pair_id'          => (String) p.get('od_pair_id__c'),
+                'display_name'        => (String) p.get('display_name__c'),
+                'region_pair'         => (String) p.get('region_pair__c'),
+                'origin_airport'      => (String) p.get('origin_airport__c'),
+                'origin_city'         => (String) p.get('origin_city__c'),
+                'destination_airport' => (String) p.get('destination_airport__c'),
+                'destination_city'    => (String) p.get('destination_city__c'),
+                'haul_type'           => (String) p.get('haul_type__c'),
+                'is_hub_route'        => p.get('is_hub_route__c')
             });
         }
         return result;
     }
 
-    /**
-     * Queries a CI via ConnectApi.CdpQuery and returns a Map of agencyId to value.
-     */
     @TestVisible
     private static Map<String, Decimal> queryCI(Set<String> agencyIds,
                                                   Map<String, String> periodParts,
@@ -169,7 +149,6 @@ public with sharing class Sales360DataService {
             parts.put('quarter', '1');
             return parts;
         }
-        // FY26Q1 => year=2026, quarter=1
         String year = '20' + fiscalPeriod.substring(2, 4);
         String quarter = fiscalPeriod.right(1);
         parts.put('year', year);

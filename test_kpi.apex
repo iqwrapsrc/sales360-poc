@@ -1,0 +1,1 @@
+try { String r = Sales360KpiController.getMyPerformanceKpis('USER_001','FY26Q1'); System.debug('OK len='+r.length()); System.debug(r.left(800)); } catch(Exception e) { System.debug('ERR: '+e.getTypeName()+' :: '+e.getMessage()); } 

@@ -1,11 +1,12 @@
 /**
  * @description  Controller for the Portfolio Summary panel LWC.
- *               Provides cached read access plus an explicit refresh path.
- *               Invokes the AI Prompt Template (Portfolio_Summary_JSON_Template) for fresh data.
+ *               PoC version - no caching. Every call regenerates fresh.
+ *               LWC @wire framework provides in-session client-side caching.
  *
  * @author       Anup Chandran (Emirates Group IT)
  * @phase        Sales360 PoC - Phase 7
  * @since        May 2026
+ * @updated      May 2026 - Cache layer removed for PoC simplification
  */
 public with sharing class Sales360PortfolioController {
 
@@ -18,18 +19,10 @@ public with sharing class Sales360PortfolioController {
             if (String.isBlank(fiscalPeriod)) {
                 fiscalPeriod = computeCurrentFiscalPeriod();
             }
-
             String ownerId = UserMappingService.resolveOwnerId(
                 UserInfo.getUserId(), userId);
 
-            // L1+L2 cache lookup
-            String cached = Sales360CacheService.getCached(
-                ownerId, fiscalPeriod, RESPONSE_TYPE);
-            if (String.isNotBlank(cached)) {
-                return cached;
-            }
-
-            return generateFresh(ownerId, fiscalPeriod, 'APEX_FRESH');
+            return generatePortfolio(ownerId, fiscalPeriod);
 
         } catch (Exception e) {
             return buildErrorResponse(userId, fiscalPeriod, e.getMessage());
@@ -38,6 +31,7 @@ public with sharing class Sales360PortfolioController {
 
     @AuraEnabled
     public static String refreshPortfolio(String userId, String fiscalPeriod) {
+        // No cache to invalidate - just regenerate
         try {
             if (String.isBlank(fiscalPeriod)) {
                 fiscalPeriod = computeCurrentFiscalPeriod();
@@ -45,19 +39,15 @@ public with sharing class Sales360PortfolioController {
             String ownerId = UserMappingService.resolveOwnerId(
                 UserInfo.getUserId(), userId);
 
-            Sales360CacheService.invalidate(ownerId, fiscalPeriod, RESPONSE_TYPE);
-            return generateFresh(ownerId, fiscalPeriod, 'MANUAL_REFRESH');
+            return generatePortfolio(ownerId, fiscalPeriod);
 
         } catch (Exception e) {
             return buildErrorResponse(userId, fiscalPeriod, e.getMessage());
         }
     }
 
-    private static String generateFresh(String ownerId, String fiscalPeriod,
-                                          String source) {
-        Long startMs = System.currentTimeMillis();
+    private static String generatePortfolio(String ownerId, String fiscalPeriod) {
 
-        // Step 1: Fetch agency portfolio data from Data Cloud
         List<Map<String, Object>> agencyData =
             Sales360DataService.getAgencyPortfolioData(ownerId, fiscalPeriod);
 
@@ -67,28 +57,15 @@ public with sharing class Sales360PortfolioController {
 
         String agencyDataJson = JSON.serialize(agencyData);
 
-        // Step 2: Invoke Prompt Template
         Map<String, String> inputParams = new Map<String, String>{
             'userId' => ownerId,
             'fiscalPeriod' => fiscalPeriod,
             'agencyDataJson' => agencyDataJson
         };
 
-        String jsonResponse = PromptTemplateInvoker.invoke(
-            TEMPLATE_API_NAME, inputParams);
-
-        // Step 3: Cache the response (default 24h TTL)
-        Long generationMs = System.currentTimeMillis() - startMs;
-        Sales360CacheService.cache(
-            ownerId, fiscalPeriod, RESPONSE_TYPE,
-            jsonResponse, generationMs, source);
-
-        return jsonResponse;
+        return PromptTemplateInvoker.invoke(TEMPLATE_API_NAME, inputParams);
     }
 
-    /**
-     * Returns a schema-conforming JSON response with empty agencies array.
-     */
     private static String buildEmptyResponse(String userId, String fiscalPeriod) {
         Map<String, Object> emptyJson = new Map<String, Object>{
             'schemaVersion' => '1.0',

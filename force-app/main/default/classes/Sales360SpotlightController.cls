@@ -1,10 +1,11 @@
 /**
  * @description  Controller for the Opportunity Spotlight panel LWC.
- *               Symmetric to Sales360PortfolioController - same cache + LLM pattern, different data.
+ *               PoC version - no caching. Every call regenerates fresh.
  *
  * @author       Anup Chandran (Emirates Group IT)
  * @phase        Sales360 PoC - Phase 7
  * @since        May 2026
+ * @updated      May 2026 - Cache layer removed for PoC simplification
  */
 public with sharing class Sales360SpotlightController {
 
@@ -17,17 +18,10 @@ public with sharing class Sales360SpotlightController {
             if (String.isBlank(fiscalPeriod)) {
                 fiscalPeriod = computeCurrentFiscalPeriod();
             }
-
             String ownerId = UserMappingService.resolveOwnerId(
                 UserInfo.getUserId(), userId);
 
-            String cached = Sales360CacheService.getCached(
-                ownerId, fiscalPeriod, RESPONSE_TYPE);
-            if (String.isNotBlank(cached)) {
-                return cached;
-            }
-
-            return generateFresh(ownerId, fiscalPeriod, 'APEX_FRESH');
+            return generateSpotlight(ownerId, fiscalPeriod);
 
         } catch (Exception e) {
             return buildErrorResponse(userId, fiscalPeriod, e.getMessage());
@@ -36,6 +30,7 @@ public with sharing class Sales360SpotlightController {
 
     @AuraEnabled
     public static String refreshSpotlight(String userId, String fiscalPeriod) {
+        // No cache to invalidate - just regenerate
         try {
             if (String.isBlank(fiscalPeriod)) {
                 fiscalPeriod = computeCurrentFiscalPeriod();
@@ -43,17 +38,14 @@ public with sharing class Sales360SpotlightController {
             String ownerId = UserMappingService.resolveOwnerId(
                 UserInfo.getUserId(), userId);
 
-            Sales360CacheService.invalidate(ownerId, fiscalPeriod, RESPONSE_TYPE);
-            return generateFresh(ownerId, fiscalPeriod, 'MANUAL_REFRESH');
+            return generateSpotlight(ownerId, fiscalPeriod);
 
         } catch (Exception e) {
             return buildErrorResponse(userId, fiscalPeriod, e.getMessage());
         }
     }
 
-    private static String generateFresh(String ownerId, String fiscalPeriod,
-                                          String source) {
-        Long startMs = System.currentTimeMillis();
+    private static String generateSpotlight(String ownerId, String fiscalPeriod) {
 
         List<Map<String, Object>> odPairData =
             Sales360DataService.getOpportunitySpotlightData(ownerId, fiscalPeriod);
@@ -70,15 +62,7 @@ public with sharing class Sales360SpotlightController {
             'odPairDataJson' => odPairDataJson
         };
 
-        String jsonResponse = PromptTemplateInvoker.invoke(
-            TEMPLATE_API_NAME, inputParams);
-
-        Long generationMs = System.currentTimeMillis() - startMs;
-        Sales360CacheService.cache(
-            ownerId, fiscalPeriod, RESPONSE_TYPE,
-            jsonResponse, generationMs, source);
-
-        return jsonResponse;
+        return PromptTemplateInvoker.invoke(TEMPLATE_API_NAME, inputParams);
     }
 
     private static String buildEmptyResponse(String userId, String fiscalPeriod) {
