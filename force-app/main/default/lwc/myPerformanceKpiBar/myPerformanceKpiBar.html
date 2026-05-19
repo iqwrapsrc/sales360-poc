@@ -1,0 +1,47 @@
+<template>
+    <div class="kpi-bar-container">
+
+        <!-- Header row: Title + Period selector + Refresh -->
+        <div class="kpi-bar-header">
+            <div class="kpi-bar-title-group">
+                <span class="kpi-bar-title">My Performance</span>
+                <span class="kpi-bar-subtitle">{fiscalPeriodLabel}</span>
+            </div>
+            <div class="kpi-bar-actions">
+                <c-period-filter-picker selected-period={fiscalPeriod}></c-period-filter-picker>
+                <lightning-button-icon
+                    icon-name="utility:refresh"
+                    variant="border-filled"
+                    onclick={handleRefresh}
+                    disabled={isRefreshing}
+                    alternative-text="Refresh KPIs"
+                    title="Refresh KPI values">
+                </lightning-button-icon>
+            </div>
+        </div>
+
+        <!-- KPI Cards Row -->
+        <div class="kpi-cards-row">
+            <template for:each={kpis} for:item="k">
+                <div key={k.kpiId} class={k.cardClass}>
+                    <div class="kpi-label">{k.label}</div>
+                    <div class="kpi-value">{k.displayValue}</div>
+                    <div class={k.trendClass}>
+                        <template if:true={k.trendUp}>
+                            <lightning-icon icon-name="utility:arrowup" size="xx-small" alternative-text="up"></lightning-icon>
+                        </template>
+                        <template if:true={k.trendDown}>
+                            <lightning-icon icon-name="utility:arrowdown" size="xx-small" alternative-text="down"></lightning-icon>
+                        </template>
+                        <span>{k.yoyDisplay} YoY</span>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Error state -->
+        <template if:true={hasError}>
+            <div class="kpi-error">{error}</div>
+        </template>
+    </div>
+</template>

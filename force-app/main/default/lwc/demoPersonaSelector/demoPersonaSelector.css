@@ -1,0 +1,21 @@
+:host {
+    display: block;
+}
+
+.persona-selector-container {
+    background: #ffffff;
+    border-radius: 0.375rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid #e1e5eb;
+    max-width: 300px;
+}
+
+.persona-picker {
+    min-width: 220px;
+}
+
+.persona-error {
+    color: #991b1b;
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+}

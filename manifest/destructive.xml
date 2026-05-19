@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Destructive changes manifest for Phase 7 rollback.
+    Use this to remove all Phase 7 artifacts from the org.
+
+    WARNING: This is destructive. EK_Sales360_Cache__c records will be lost.
+    Test_User_Mapping__c records will be lost.
+
+    Usage (with sf CLI flags shown without dashes due to XML comment restrictions):
+        sf project deploy start
+            manifest=manifest/destructive.xml
+            post-destructive-changes=manifest/destructive.xml
+            target-org=sales360-dev
+
+    The actual sf command uses double-dash flags. See README.md for the correct syntax.
+-->
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+
+    <!-- Apps and tabs first (so they don't reference deleted objects) -->
+    <types>
+        <members>Sales360_App</members>
+        <name>CustomApplication</name>
+    </types>
+
+    <types>
+        <members>Sales360_Unified_Desktop</members>
+        <name>CustomTab</name>
+    </types>
+
+    <types>
+        <members>Sales360_Unified_Desktop</members>
+        <name>FlexiPage</name>
+    </types>
+
+    <types>
+        <members>Sales360_Performance_User</members>
+        <name>PermissionSet</name>
+    </types>
+
+    <!-- LWCs -->
+    <types>
+        <members>myPerformanceKpiBar</members>
+        <members>periodFilterPicker</members>
+        <members>portfolioSummaryPanel</members>
+        <members>opportunitySpotlightPanel</members>
+        <members>demoPersonaSelector</members>
+        <name>LightningComponentBundle</name>
+    </types>
+
+    <!-- Apex Classes -->
+    <types>
+        <members>Sales360KpiController</members>
+        <members>Sales360PortfolioController</members>
+        <members>Sales360SpotlightController</members>
+        <members>KpiAggregationService</members>
+        <members>Sales360DataService</members>
+        <members>Sales360CacheService</members>
+        <members>UserMappingService</members>
+        <members>PromptTemplateInvoker</members>
+        <name>ApexClass</name>
+    </types>
+
+    <!-- Custom Objects (last - they have child relationships) -->
+    <types>
+        <members>EK_Sales360_Cache__c</members>
+        <members>Test_User_Mapping__c</members>
+        <name>CustomObject</name>
+    </types>
+
+    <version>62.0</version>
+</Package>

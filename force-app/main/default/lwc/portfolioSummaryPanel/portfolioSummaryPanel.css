@@ -1,0 +1,241 @@
+:host {
+    display: block;
+}
+
+.portfolio-panel-container {
+    background: #ffffff;
+    border-radius: 0.5rem;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e1e5eb;
+    min-height: 400px;
+}
+
+/* Panel header */
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #e1e5eb;
+}
+
+.panel-title-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.panel-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #1a1a2e;
+    letter-spacing: -0.01em;
+}
+
+/* Headline narrative */
+.headline-narrative {
+    font-size: 0.9375rem;
+    color: #4b5563;
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+/* RAG KPI tiles */
+.rag-tiles-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.rag-tile {
+    padding: 0.75rem;
+    border-radius: 0.375rem;
+    text-align: center;
+    border: 1px solid;
+    transition: transform 0.15s ease;
+}
+
+.rag-tile:hover {
+    transform: translateY(-1px);
+}
+
+.rag-tile-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+
+.rag-tile-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.25rem;
+}
+
+.rag-tile-total {
+    background: #f9fafb;
+    border-color: #e1e5eb;
+    color: #1a1a2e;
+}
+
+.rag-tile-red {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #991b1b;
+}
+
+.rag-tile-amber {
+    background: #fffaf0;
+    border-color: #fde68a;
+    color: #92400e;
+}
+
+.rag-tile-green {
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+    color: #065f46;
+}
+
+/* Agency list header */
+.agency-list-header {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #6b7280;
+    margin-bottom: 0.5rem;
+}
+
+/* Agency list */
+.agency-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 480px;
+    overflow-y: auto;
+}
+
+.agency-list li {
+    padding: 0.875rem 1rem;
+    margin-bottom: 0.5rem;
+    background: #fafafa;
+    border-radius: 0.375rem;
+    border-left: 4px solid #ccc;
+    transition: all 0.15s ease;
+}
+
+.agency-list li:hover {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.agency-list li.agency-rag-red {
+    border-left-color: #dc2626;
+    background: #fff5f5;
+}
+
+.agency-list li.agency-rag-amber {
+    border-left-color: #d97700;
+    background: #fffaf0;
+}
+
+.agency-list li.agency-rag-green {
+    border-left-color: #059669;
+    background: #f5fbf5;
+}
+
+.agency-row-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+}
+
+.agency-identity {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+
+.agency-name {
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: #1a1a2e;
+}
+
+.agency-subtitle {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+.agency-rag-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.25rem;
+    background: rgba(0, 0, 0, 0.05);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.agency-rag-red .agency-rag-badge {
+    background: #fecaca;
+    color: #991b1b;
+}
+
+.agency-rag-amber .agency-rag-badge {
+    background: #fde68a;
+    color: #92400e;
+}
+
+.agency-rag-green .agency-rag-badge {
+    background: #a7f3d0;
+    color: #065f46;
+}
+
+.agency-narrative {
+    font-size: 0.8125rem;
+    color: #4b5563;
+    line-height: 1.5;
+    font-style: italic;
+    margin: 0;
+}
+
+/* States */
+.empty-state,
+.loading-state,
+.error-state {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+}
+
+.empty-state {
+    background: #f3f4f6;
+    color: #4b5563;
+}
+
+.loading-state {
+    background: #eff6ff;
+    color: #1e40af;
+}
+
+.error-state {
+    background: #fef2f2;
+    color: #991b1b;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .rag-tiles-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}

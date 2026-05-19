@@ -1,0 +1,19 @@
+<template>
+    <div class="persona-selector-container">
+        <template if:true={hasPersonas}>
+            <lightning-combobox
+                name="personaSelector"
+                label="Demo Persona"
+                value={selectedPersona}
+                placeholder="Select persona"
+                options={personaOptions}
+                onchange={handleChange}
+                class="persona-picker">
+            </lightning-combobox>
+        </template>
+
+        <template if:true={hasError}>
+            <div class="persona-error">{error}</div>
+        </template>
+    </div>
+</template>

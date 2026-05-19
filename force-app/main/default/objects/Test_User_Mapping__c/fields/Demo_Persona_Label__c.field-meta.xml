@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Demo_Persona_Label__c</fullName>
+    <description>Friendly label shown in the Demo Persona Selector LWC (e.g., India Sales Lead, UAE Senior AE).</description>
+    <externalId>false</externalId>
+    <label>Demo Persona Label</label>
+    <length>60</length>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

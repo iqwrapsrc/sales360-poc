@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Generation_Time_Ms__c</fullName>
+    <description>Time in milliseconds taken to generate this cache entry. Useful for performance telemetry.</description>
+    <externalId>false</externalId>
+    <label>Generation Time (ms)</label>
+    <precision>10</precision>
+    <required>false</required>
+    <scale>0</scale>
+    <trackTrending>false</trackTrending>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>

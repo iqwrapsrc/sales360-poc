@@ -1,0 +1,16 @@
+{
+  "orgName": "Sales360 PoC Dev",
+  "edition": "Developer",
+  "features": [
+    "EnableSetPasswordInApi",
+    "Communities"
+  ],
+  "settings": {
+    "lightningExperienceSettings": {
+      "enableS1DesktopEnabled": true
+    },
+    "mobileSettings": {
+      "enableS1EncryptedStoragePref2": false
+    }
+  }
+}

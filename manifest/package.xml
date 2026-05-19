@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+
+    <!-- Custom Objects -->
+    <types>
+        <members>EK_Sales360_Cache__c</members>
+        <members>Test_User_Mapping__c</members>
+        <name>CustomObject</name>
+    </types>
+
+    <!-- Custom Fields (explicit for clarity; auto-included with object too) -->
+    <types>
+        <members>EK_Sales360_Cache__c.User_Id__c</members>
+        <members>EK_Sales360_Cache__c.Fiscal_Period__c</members>
+        <members>EK_Sales360_Cache__c.Response_Type__c</members>
+        <members>EK_Sales360_Cache__c.Schema_Version__c</members>
+        <members>EK_Sales360_Cache__c.JSON_Payload__c</members>
+        <members>EK_Sales360_Cache__c.Generated_At__c</members>
+        <members>EK_Sales360_Cache__c.Expires_At__c</members>
+        <members>EK_Sales360_Cache__c.Hit_Count__c</members>
+        <members>EK_Sales360_Cache__c.Generation_Source__c</members>
+        <members>EK_Sales360_Cache__c.Generation_Time_Ms__c</members>
+        <members>EK_Sales360_Cache__c.Is_Stale__c</members>
+        <members>Test_User_Mapping__c.Mapped_Owner_Id__c</members>
+        <members>Test_User_Mapping__c.Demo_Persona_Label__c</members>
+        <members>Test_User_Mapping__c.Is_Default__c</members>
+        <members>Test_User_Mapping__c.Description__c</members>
+        <name>CustomField</name>
+    </types>
+
+    <!-- Apex Classes -->
+    <types>
+        <members>PromptTemplateInvoker</members>
+        <members>UserMappingService</members>
+        <members>Sales360CacheService</members>
+        <members>Sales360DataService</members>
+        <members>KpiAggregationService</members>
+        <members>Sales360KpiController</members>
+        <members>Sales360PortfolioController</members>
+        <members>Sales360SpotlightController</members>
+        <name>ApexClass</name>
+    </types>
+
+    <!-- Lightning Web Components -->
+    <types>
+        <members>myPerformanceKpiBar</members>
+        <members>periodFilterPicker</members>
+        <members>portfolioSummaryPanel</members>
+        <members>opportunitySpotlightPanel</members>
+        <members>demoPersonaSelector</members>
+        <name>LightningComponentBundle</name>
+    </types>
+
+    <!-- Lightning App Pages -->
+    <types>
+        <members>Sales360_Unified_Desktop</members>
+        <name>FlexiPage</name>
+    </types>
+
+    <!-- Custom Tabs -->
+    <types>
+        <members>Sales360_Unified_Desktop</members>
+        <name>CustomTab</name>
+    </types>
+
+    <!-- Custom Applications -->
+    <types>
+        <members>Sales360_App</members>
+        <name>CustomApplication</name>
+    </types>
+
+    <!-- Permission Sets -->
+    <types>
+        <members>Sales360_Performance_User</members>
+        <name>PermissionSet</name>
+    </types>
+
+    <version>62.0</version>
+</Package>

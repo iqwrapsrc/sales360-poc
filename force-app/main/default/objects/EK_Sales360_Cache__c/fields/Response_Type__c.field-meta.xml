@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Response_Type__c</fullName>
+    <description>The type of cached response - determines which controller wrote it and which schema applies.</description>
+    <externalId>false</externalId>
+    <label>Response Type</label>
+    <required>true</required>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>MY_PERFORMANCE_KPI</fullName>
+                <default>false</default>
+                <label>My Performance KPI</label>
+            </value>
+            <value>
+                <fullName>PORTFOLIO_SUMMARY</fullName>
+                <default>false</default>
+                <label>Portfolio Summary</label>
+            </value>
+            <value>
+                <fullName>OPPORTUNITY_SPOTLIGHT</fullName>
+                <default>false</default>
+                <label>Opportunity Spotlight</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

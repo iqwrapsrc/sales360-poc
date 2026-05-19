@@ -1,0 +1,30 @@
+# Salesforce
+.sfdx/
+.sf/
+.localdevserver/
+deploy-options.json
+
+# LWC
+**/node_modules/
+**/__tests__/
+**/.eslintrc.json
+**/.prettierrc
+**/.prettierignore
+**/jest.config.js
+**/package-lock.json
+**/lcov-report/
+
+# IDE
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+Thumbs.db

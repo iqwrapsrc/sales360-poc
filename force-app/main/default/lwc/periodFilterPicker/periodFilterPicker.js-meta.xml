@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>62.0</apiVersion>
+    <isExposed>true</isExposed>
+    <masterLabel>Period Filter Picker</masterLabel>
+    <description>Fiscal period dropdown for Sales360 Unified Desktop. Emits s360-period-change window event.</description>
+    <targets>
+        <target>lightning__AppPage</target>
+        <target>lightning__HomePage</target>
+        <target>lightning__RecordPage</target>
+    </targets>
+    <targetConfigs>
+        <targetConfig targets="lightning__AppPage,lightning__HomePage,lightning__RecordPage">
+            <property name="selectedPeriod" label="Default Period" type="String" default="" description="Initial fiscal period (leave blank to auto-compute current quarter)"/>
+        </targetConfig>
+    </targetConfigs>
+</LightningComponentBundle>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>62.0</apiVersion>
+    <isExposed>true</isExposed>
+    <masterLabel>AI Opportunity Spotlight Panel</masterLabel>
+    <description>AI-powered Opportunity Spotlight panel for Sales360 Unified Desktop. Shows top 6 OD pairs requiring attention.</description>
+    <targets>
+        <target>lightning__AppPage</target>
+        <target>lightning__HomePage</target>
+        <target>lightning__RecordPage</target>
+    </targets>
+    <targetConfigs>
+        <targetConfig targets="lightning__AppPage,lightning__HomePage,lightning__RecordPage">
+            <property name="persona" label="Demo Persona Override" type="String" default="" description="Optional: override the SF user mapping (e.g., USER_002)"/>
+        </targetConfig>
+    </targetConfigs>
+</LightningComponentBundle>

@@ -1,0 +1,102 @@
+<template>
+    <div class="spotlight-panel-container">
+
+        <!-- Panel Header -->
+        <div class="panel-header">
+            <div class="panel-title-group">
+                <lightning-icon icon-name="utility:trending" size="small" alternative-text="Spotlight"></lightning-icon>
+                <span class="panel-title">AI Opportunity Spotlight</span>
+            </div>
+            <div class="panel-actions">
+                <lightning-button-icon
+                    icon-name="utility:refresh"
+                    variant="border-filled"
+                    onclick={handleRefresh}
+                    disabled={isRefreshing}
+                    alternative-text="Refresh Spotlight"
+                    title="Refresh insights">
+                </lightning-button-icon>
+            </div>
+        </div>
+
+        <!-- Headline narrative -->
+        <template if:true={headlineNarrative}>
+            <p class="headline-narrative">{headlineNarrative}</p>
+        </template>
+
+        <!-- Summary tiles -->
+        <template if:true={hasData}>
+            <div class="summary-tiles-row">
+                <div class="summary-tile summary-tile-total">
+                    <div class="summary-tile-value">{totalOpportunities}</div>
+                    <div class="summary-tile-label">Routes</div>
+                </div>
+                <div class="summary-tile summary-tile-red">
+                    <div class="summary-tile-value">{redCount}</div>
+                    <div class="summary-tile-label">Urgent</div>
+                </div>
+                <div class="summary-tile summary-tile-amber">
+                    <div class="summary-tile-value">{amberCount}</div>
+                    <div class="summary-tile-label">Watch</div>
+                </div>
+                <div class="summary-tile summary-tile-green">
+                    <div class="summary-tile-value">{greenCount}</div>
+                    <div class="summary-tile-label">Stable</div>
+                </div>
+            </div>
+        </template>
+
+        <!-- Spotlight cards -->
+        <template if:true={hasData}>
+            <div class="spotlight-list-header">
+                <span>Top Opportunities</span>
+            </div>
+            <ul class="spotlight-list">
+                <template for:each={spotlights} for:item="s">
+                    <li key={s.spotlightId} class={s.ragClass}>
+                        <div class="spotlight-card-header">
+                            <div class="spotlight-identity">
+                                <span class="spotlight-title">{s.title}</span>
+                                <span class="spotlight-subtitle">{s.subtitle}</span>
+                            </div>
+                            <span class="spotlight-rag-badge">{s.ragLabel}</span>
+                        </div>
+
+                        <template if:true={s.headerKpiValue}>
+                            <div class="spotlight-header-kpi">
+                                <span class="kpi-label">{s.headerKpiLabel}:</span>
+                                <span class="kpi-value">{s.headerKpiValue}</span>
+                            </div>
+                        </template>
+
+                        <p class="spotlight-narrative">{s.narrative}</p>
+                    </li>
+                </template>
+            </ul>
+        </template>
+
+        <!-- Empty state -->
+        <template if:true={isEmpty}>
+            <div class="empty-state">
+                <lightning-icon icon-name="utility:info" size="small" alternative-text="Info"></lightning-icon>
+                <p>No route opportunities identified for this user and period.</p>
+            </div>
+        </template>
+
+        <!-- Loading state -->
+        <template if:true={isRefreshing}>
+            <div class="loading-state">
+                <lightning-spinner alternative-text="Generating spotlights..." size="small"></lightning-spinner>
+                <span>Generating fresh route insights...</span>
+            </div>
+        </template>
+
+        <!-- Error state -->
+        <template if:true={hasError}>
+            <div class="error-state">
+                <lightning-icon icon-name="utility:error" size="small" alternative-text="Error"></lightning-icon>
+                <span>{error}</span>
+            </div>
+        </template>
+    </div>
+</template>

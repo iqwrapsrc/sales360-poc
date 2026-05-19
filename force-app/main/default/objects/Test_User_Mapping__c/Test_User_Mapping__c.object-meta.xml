@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <customSettingsType>List</customSettingsType>
+    <description>Maps Salesforce User IDs to demo persona owner IDs for Sales360 PoC. Allows the demo to switch between test personas while running as a single SF user.</description>
+    <enableFeeds>false</enableFeeds>
+    <label>Test User Mapping</label>
+    <visibility>Public</visibility>
+</CustomObject>

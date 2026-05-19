@@ -1,0 +1,94 @@
+<template>
+    <div class="portfolio-panel-container">
+
+        <!-- Panel Header -->
+        <div class="panel-header">
+            <div class="panel-title-group">
+                <lightning-icon icon-name="standard:account" size="small" alternative-text="Portfolio"></lightning-icon>
+                <span class="panel-title">Portfolio Summary</span>
+            </div>
+            <div class="panel-actions">
+                <lightning-button-icon
+                    icon-name="utility:refresh"
+                    variant="border-filled"
+                    onclick={handleRefresh}
+                    disabled={isRefreshing}
+                    alternative-text="Refresh Portfolio"
+                    title="Refresh insights">
+                </lightning-button-icon>
+            </div>
+        </div>
+
+        <!-- Headline narrative -->
+        <template if:true={headlineNarrative}>
+            <p class="headline-narrative">{headlineNarrative}</p>
+        </template>
+
+        <!-- RAG KPI tiles -->
+        <template if:true={hasData}>
+            <div class="rag-tiles-row">
+                <div class="rag-tile rag-tile-total">
+                    <div class="rag-tile-value">{totalAgencies}</div>
+                    <div class="rag-tile-label">Total Agencies</div>
+                </div>
+                <div class="rag-tile rag-tile-red">
+                    <div class="rag-tile-value">{redCount}</div>
+                    <div class="rag-tile-label">Needs Attention</div>
+                </div>
+                <div class="rag-tile rag-tile-amber">
+                    <div class="rag-tile-value">{amberCount}</div>
+                    <div class="rag-tile-label">Watch</div>
+                </div>
+                <div class="rag-tile rag-tile-green">
+                    <div class="rag-tile-value">{greenCount}</div>
+                    <div class="rag-tile-label">On Track</div>
+                </div>
+            </div>
+        </template>
+
+        <!-- Agency list -->
+        <template if:true={hasData}>
+            <div class="agency-list-header">
+                <span>Agencies</span>
+            </div>
+            <ul class="agency-list">
+                <template for:each={agencies} for:item="a">
+                    <li key={a.agencyId} class={a.ragClass}>
+                        <div class="agency-row-header">
+                            <div class="agency-identity">
+                                <span class="agency-name">{a.agencyName}</span>
+                                <span class="agency-subtitle">{a.displaySubtitle}</span>
+                            </div>
+                            <span class="agency-rag-badge">{a.ragLabel}</span>
+                        </div>
+                        <p class="agency-narrative">{a.narrative}</p>
+                    </li>
+                </template>
+            </ul>
+        </template>
+
+        <!-- Empty state -->
+        <template if:true={isEmpty}>
+            <div class="empty-state">
+                <lightning-icon icon-name="utility:info" size="small" alternative-text="Info"></lightning-icon>
+                <p>No agencies found for this user. Try switching demo persona or adjusting the period.</p>
+            </div>
+        </template>
+
+        <!-- Loading state -->
+        <template if:true={isRefreshing}>
+            <div class="loading-state">
+                <lightning-spinner alternative-text="Generating insights..." size="small"></lightning-spinner>
+                <span>Generating fresh AI insights...</span>
+            </div>
+        </template>
+
+        <!-- Error state -->
+        <template if:true={hasError}>
+            <div class="error-state">
+                <lightning-icon icon-name="utility:error" size="small" alternative-text="Error"></lightning-icon>
+                <span>{error}</span>
+            </div>
+        </template>
+    </div>
+</template>

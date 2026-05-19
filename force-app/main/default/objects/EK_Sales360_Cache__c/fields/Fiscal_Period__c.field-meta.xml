@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Fiscal_Period__c</fullName>
+    <description>The fiscal period in format FYYYQQ (e.g., FY26Q1) or special values like FY26 (full year), LAST12MONTHS.</description>
+    <externalId>false</externalId>
+    <label>Fiscal Period</label>
+    <length>10</length>
+    <required>true</required>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

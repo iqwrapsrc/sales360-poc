@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>JSON_Payload__c</fullName>
+    <description>The serialized JSON output from the Prompt Template or aggregation. Max 131,072 characters.</description>
+    <externalId>false</externalId>
+    <label>JSON Payload</label>
+    <length>131072</length>
+    <required>true</required>
+    <trackTrending>false</trackTrending>
+    <type>LongTextArea</type>
+    <visibleLines>10</visibleLines>
+</CustomField>

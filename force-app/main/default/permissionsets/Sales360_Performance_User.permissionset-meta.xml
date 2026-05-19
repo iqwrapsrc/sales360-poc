@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Grants access to all Sales360 Phase 7 artifacts: custom object, custom setting, Apex classes, LWCs, FlexiPage, Tab, and Application. Assign to all users who should access the Sales360 Unified Desktop.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Sales360 Performance User</label>
+    <license>Salesforce</license>
+
+    <!-- Apex Classes -->
+    <classAccesses>
+        <apexClass>KpiAggregationService</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>PromptTemplateInvoker</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>Sales360CacheService</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>Sales360DataService</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>Sales360KpiController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>Sales360PortfolioController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>Sales360SpotlightController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>UserMappingService</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+
+    <!-- Custom Object Permissions: EK_Sales360_Cache__c -->
+    <objectPermissions>
+        <allowCreate>true</allowCreate>
+        <allowDelete>true</allowDelete>
+        <allowEdit>true</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>EK_Sales360_Cache__c</object>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
+
+    <!-- Field Permissions for EK_Sales360_Cache__c -->
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>EK_Sales360_Cache__c.User_Id__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>EK_Sales360_Cache__c.Fiscal_Period__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>EK_Sales360_Cache__c.Response_Type__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>EK_Sales360_Cache__c.Schema_Version__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>EK_Sales360_Cache__c.JSON_Payload__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>EK_Sales360_Cache__c.Generated_At__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>EK_Sales360_Cache__c.Expires_At__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>EK_Sales360_Cache__c.Hit_Count__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>EK_Sales360_Cache__c.Generation_Source__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>EK_Sales360_Cache__c.Generation_Time_Ms__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>EK_Sales360_Cache__c.Is_Stale__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+
+    <!-- Application access -->
+    <applicationVisibilities>
+        <application>Sales360_App</application>
+        <default>false</default>
+        <visible>true</visible>
+    </applicationVisibilities>
+
+    <!-- Tab access -->
+    <tabSettings>
+        <tab>Sales360_Unified_Desktop</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+
+</PermissionSet>

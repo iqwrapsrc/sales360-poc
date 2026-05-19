@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Is_Stale__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Allows manual marking-as-stale without deleting the record. Preserves audit history.</description>
+    <externalId>false</externalId>
+    <label>Is Stale</label>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>
