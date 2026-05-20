@@ -12,12 +12,21 @@
                     icon-name="utility:refresh"
                     variant="border-filled"
                     onclick={handleRefresh}
-                    disabled={isRefreshing}
+                    disabled={isLoading}
                     alternative-text="Refresh Portfolio"
                     title="Refresh insights">
                 </lightning-button-icon>
             </div>
         </div>
+
+        <!-- Slim indeterminate progress bar - shows only while this panel is loading.
+             Does NOT block the page; just signals this section is working. -->
+        <template if:true={isLoading}>
+            <div class="ai-progress-wrap">
+                <div class="ai-progress-bar"></div>
+            </div>
+            <p class="ai-progress-label">Generating AI insights&hellip; analysing your agency portfolio with Agentforce</p>
+        </template>
 
         <!-- Headline narrative -->
         <template if:true={headlineNarrative}>
@@ -67,19 +76,20 @@
             </ul>
         </template>
 
+        <!-- First-load skeleton placeholder (only when loading and no data yet) -->
+        <template if:true={isLoading}>
+            <template if:false={hasData}>
+                <div class="skeleton-block"></div>
+                <div class="skeleton-block"></div>
+                <div class="skeleton-block short"></div>
+            </template>
+        </template>
+
         <!-- Empty state -->
         <template if:true={isEmpty}>
             <div class="empty-state">
                 <lightning-icon icon-name="utility:info" size="small" alternative-text="Info"></lightning-icon>
                 <p>No agencies found for this user. Try switching demo persona or adjusting the period.</p>
-            </div>
-        </template>
-
-        <!-- Loading state -->
-        <template if:true={isRefreshing}>
-            <div class="loading-state">
-                <lightning-spinner alternative-text="Generating insights..." size="small"></lightning-spinner>
-                <span>Generating fresh AI insights...</span>
             </div>
         </template>
 

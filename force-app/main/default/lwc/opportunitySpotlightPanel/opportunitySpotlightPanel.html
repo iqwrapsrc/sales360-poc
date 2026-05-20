@@ -12,12 +12,20 @@
                     icon-name="utility:refresh"
                     variant="border-filled"
                     onclick={handleRefresh}
-                    disabled={isRefreshing}
+                    disabled={isLoading}
                     alternative-text="Refresh Spotlight"
                     title="Refresh insights">
                 </lightning-button-icon>
             </div>
         </div>
+
+        <!-- Slim per-panel progress bar -->
+        <template if:true={isLoading}>
+            <div class="ai-progress-wrap">
+                <div class="ai-progress-bar"></div>
+            </div>
+            <p class="ai-progress-label">Generating AI insights&hellip; analysing route opportunities with Agentforce</p>
+        </template>
 
         <!-- Headline narrative -->
         <template if:true={headlineNarrative}>
@@ -75,19 +83,20 @@
             </ul>
         </template>
 
+        <!-- First-load skeleton -->
+        <template if:true={isLoading}>
+            <template if:false={hasData}>
+                <div class="skeleton-block"></div>
+                <div class="skeleton-block"></div>
+                <div class="skeleton-block short"></div>
+            </template>
+        </template>
+
         <!-- Empty state -->
         <template if:true={isEmpty}>
             <div class="empty-state">
                 <lightning-icon icon-name="utility:info" size="small" alternative-text="Info"></lightning-icon>
                 <p>No route opportunities identified for this user and period.</p>
-            </div>
-        </template>
-
-        <!-- Loading state -->
-        <template if:true={isRefreshing}>
-            <div class="loading-state">
-                <lightning-spinner alternative-text="Generating spotlights..." size="small"></lightning-spinner>
-                <span>Generating fresh route insights...</span>
             </div>
         </template>
 

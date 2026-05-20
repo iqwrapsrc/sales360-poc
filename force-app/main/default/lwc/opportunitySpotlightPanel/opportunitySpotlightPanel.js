@@ -1,37 +1,52 @@
-import { LightningElement, wire, track, api } from 'lwc';
-import { refreshApex } from '@salesforce/apex';
+import { LightningElement, track, api } from 'lwc';
 import getSpotlightJson from '@salesforce/apex/Sales360SpotlightController.getSpotlightJson';
 import refreshSpotlight from '@salesforce/apex/Sales360SpotlightController.refreshSpotlight';
 
 /**
  * AI Opportunity Spotlight Panel
  *
- * AI-powered panel showing the top 6 OD pair (route) opportunities requiring attention.
- * Each spotlight shows EK market share, competitor analysis, and forecasted seat factors.
+ * Loading UX: imperative Apex, first call DEFERRED out of connectedCallback (microtask)
+ * so the platform does not show its page-level overlay during initial render. Each panel
+ * loads independently with its own slim progress bar; the rest of the page stays interactive.
  *
  * @author Anup Chandran - Sales360 PoC Phase 7
  */
 export default class OpportunitySpotlightPanel extends LightningElement {
 
-    @api persona = '';
+    @api
+    get persona() { return this._persona; }
+    set persona(value) {
+        this._persona = value;
+        if (this._connected) this.deferLoad();
+    }
+    _persona = '';
+
     @track fiscalPeriod = '';
     @track spotlightData = null;
-    @track isRefreshing = false;
+    @track isLoading = true;
     @track error = null;
 
-    wiredResult;
+    _connected = false;
     _periodHandler;
     _personaHandler;
 
     connectedCallback() {
-        this._periodHandler = (e) => { this.fiscalPeriod = e.detail.fiscalPeriod; };
-        this._personaHandler = (e) => { this.persona = e.detail.persona; };
+        this._connected = true;
+        this._periodHandler = (e) => {
+            this.fiscalPeriod = e.detail.fiscalPeriod;
+            this.deferLoad();
+        };
+        this._personaHandler = (e) => {
+            this._persona = e.detail.persona;
+            this.deferLoad();
+        };
         window.addEventListener('s360-period-change', this._periodHandler);
         window.addEventListener('s360-persona-change', this._personaHandler);
 
         if (!this.fiscalPeriod) {
             this.fiscalPeriod = this.computeCurrentPeriod();
         }
+        this.deferLoad();
     }
 
     disconnectedCallback() {
@@ -39,22 +54,55 @@ export default class OpportunitySpotlightPanel extends LightningElement {
         window.removeEventListener('s360-persona-change', this._personaHandler);
     }
 
-    @wire(getSpotlightJson, { userId: '$persona', fiscalPeriod: '$fiscalPeriod' })
-    wiredSpotlight(result) {
-        this.wiredResult = result;
-        if (result.data) {
-            try {
-                this.spotlightData = JSON.parse(result.data);
-                this.error = this.spotlightData.error ? this.spotlightData.error.message : null;
-            } catch (e) {
-                this.error = 'Unable to parse spotlight data';
-            }
-        } else if (result.error) {
-            const message = result.error.body
-                ? result.error.body.message
-                : result.error.message;
-            this.error = 'Failed to load spotlights: ' + message;
+    deferLoad() {
+        this.isLoading = true;
+        Promise.resolve().then(() => this.loadData());
+    }
+
+    async loadData() {
+        this.isLoading = true;
+        this.error = null;
+        try {
+            const raw = await getSpotlightJson({
+                userId: this._persona,
+                fiscalPeriod: this.fiscalPeriod
+            });
+            this.applyResult(raw);
+        } catch (e) {
+            this.error = 'Failed to load spotlights: ' + this.msg(e);
+        } finally {
+            this.isLoading = false;
         }
+    }
+
+    async handleRefresh() {
+        this.isLoading = true;
+        this.error = null;
+        try {
+            const raw = await refreshSpotlight({
+                userId: this._persona,
+                fiscalPeriod: this.fiscalPeriod
+            });
+            this.applyResult(raw);
+        } catch (e) {
+            this.error = 'Refresh failed: ' + this.msg(e);
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    applyResult(raw) {
+        try {
+            this.spotlightData = JSON.parse(raw);
+            this.error = this.spotlightData.error ? this.spotlightData.error.message : null;
+        } catch (e) {
+            this.error = 'Unable to parse spotlight data';
+        }
+    }
+
+    msg(e) {
+        return (e && e.body && e.body.message) ? e.body.message
+             : (e && e.message) ? e.message : 'Unknown error';
     }
 
     get hasData() {
@@ -64,13 +112,14 @@ export default class OpportunitySpotlightPanel extends LightningElement {
     }
 
     get isEmpty() {
-        return this.spotlightData
+        return !this.isLoading
+            && this.spotlightData
             && this.spotlightData.spotlights
             && this.spotlightData.spotlights.length === 0;
     }
 
     get hasError() {
-        return !!this.error;
+        return !this.isLoading && !!this.error;
     }
 
     get headlineNarrative() {
@@ -79,8 +128,12 @@ export default class OpportunitySpotlightPanel extends LightningElement {
     }
 
     get totalOpportunities() {
-        return this.spotlightData && this.spotlightData.summary
-            ? this.spotlightData.summary.totalOpportunitiesCovered : 0;
+        // Derive from the actual spotlights array so ROUTES is always populated,
+        // regardless of whether the LLM filled summary.totalOpportunitiesCovered.
+        if (this.spotlightData && this.spotlightData.spotlights) {
+            return this.spotlightData.spotlights.length;
+        }
+        return 0;
     }
 
     get redCount() {
@@ -109,21 +162,6 @@ export default class OpportunitySpotlightPanel extends LightningElement {
             headerKpiValue: s.metrics && s.metrics.headerKpi
                 ? s.metrics.headerKpi.value : ''
         }));
-    }
-
-    async handleRefresh() {
-        this.isRefreshing = true;
-        try {
-            await refreshSpotlight({
-                userId: this.persona,
-                fiscalPeriod: this.fiscalPeriod
-            });
-            await refreshApex(this.wiredResult);
-        } catch (e) {
-            this.error = 'Refresh failed: ' + e.message;
-        } finally {
-            this.isRefreshing = false;
-        }
     }
 
     computeCurrentPeriod() {
