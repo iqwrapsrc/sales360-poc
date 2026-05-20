@@ -9,15 +9,18 @@
  * @author       Anup Chandran (Emirates Group IT)
  * @phase        Sales360 PoC - Phase 7
  * @since        May 2026
+ * @updated      May 2026 - Hardened sumCI() against Connect API proxy fault in @AuraEnabled(cacheable=true)
+ *                          context. The platform-level "Internal Salesforce.com Error" fault was
+ *                          observed at row.get(alias) immediately after a successful CdpQuery SUM
+ *                          aggregation, bypassing the try/catch. Defensive JSON serialize/deserialize
+ *                          converts the Connect API result proxy into a native Apex HashMap before
+ *                          key access; snake_case alias matches Data Cloud's Trino-based identifier
+ *                          folding; multi-casing key lookup tolerates engine behaviour drift.
  */
 public with sharing class KpiAggregationService {
 
     /**
      * Returns the 4 headline KPIs with YoY deltas for the given owner and period.
-     *
-     * @param ownerUserId    The owner user ID (mapped via UserMappingService)
-     * @param fiscalPeriod   E.g., 'FY26Q1'
-     * @return               Map matching MY_PERFORMANCE_KPI JSON schema (ready for JSON.serialize)
      */
     public static Map<String, Object> getMyPerformanceKpis(
             String ownerUserId, String fiscalPeriod) {
@@ -25,13 +28,11 @@ public with sharing class KpiAggregationService {
         Map<String, String> currentPeriod = parseFiscalPeriod(fiscalPeriod);
         Map<String, String> priorPeriod = computePriorYearPeriod(currentPeriod);
 
-        // Aggregate current and prior period values
         Map<String, Decimal> current =
             aggregateAllKpis(ownerUserId, currentPeriod);
         Map<String, Decimal> prior =
             aggregateAllKpis(ownerUserId, priorPeriod);
 
-        // Build response matching MY_PERFORMANCE_KPI schema
         return new Map<String, Object>{
             'schemaVersion' => '1.0',
             'responseType' => 'MY_PERFORMANCE_KPI',
@@ -58,11 +59,6 @@ public with sharing class KpiAggregationService {
         };
     }
 
-    /**
-     * Aggregates all 4 KPIs for a single period via 4 parallel CdpQuery calls.
-     * In the PoC we run 4 separate queries; in production this could be consolidated
-     * to a single multi-CI JOIN query for efficiency.
-     */
     @TestVisible
     private static Map<String, Decimal> aggregateAllKpis(
             String ownerUserId, Map<String, String> period) {
@@ -74,19 +70,12 @@ public with sharing class KpiAggregationService {
             'forwardPax' => 0
         };
 
-        // Query 1: Flown Revenue SUM
         result.put('flownRevenue', sumCI(ownerUserId, period,
             'Flown_Revenue_By_Agency__cio', 'flown_revenue_aed__c'));
-
-        // Query 2: Flown PAX SUM
         result.put('flownPax', sumCI(ownerUserId, period,
             'Flown_PAX_By_Agency__cio', 'flown_pax__c'));
-
-        // Query 3: Forward Revenue SUM
         result.put('forwardRevenue', sumCI(ownerUserId, period,
             'Forward_Revenue_By_Agency__cio', 'forward_revenue_aed__c'));
-
-        // Query 4: Forward PAX SUM
         result.put('forwardPax', sumCI(ownerUserId, period,
             'Forward_PAX_By_Agency__cio', 'forward_pax__c'));
 
@@ -95,13 +84,21 @@ public with sharing class KpiAggregationService {
 
     /**
      * Returns the SUM of a single CI's value field across all agencies owned by the user.
-     * Uses ConnectApi.CdpQuery with a SUM aggregation joining via the agency master DMO.
+     *
+     * Hardening notes (May 2026):
+     * - The result row from ConnectApi.CdpQuery is a proxy object, not a native HashMap.
+     *   In @AuraEnabled(cacheable=true) context this proxy can trip a platform-level
+     *   "Internal Salesforce.com Error" fault on Map.get() which bypasses try/catch.
+     *   We serialize/deserialize through JSON to materialize a native HashMap before
+     *   any key access.
+     * - Data Cloud's Trino-based SQL engine folds unquoted identifiers to lowercase,
+     *   so the alias 'totalValue' would arrive as 'totalvalue'. We use snake_case
+     *   'total_value' as the canonical alias and probe multiple casings on read.
      */
     @TestVisible
     private static Decimal sumCI(String ownerUserId, Map<String, String> period,
                                   String ciName, String valueField) {
 
-        // First query the agency IDs owned by this user from the master DMO
         List<SObject> agencies = Database.query(
             'SELECT agency_id__c FROM Agency__dlm ' +
             'WHERE owner_user_id__c = :ownerUserId'
@@ -113,7 +110,7 @@ public with sharing class KpiAggregationService {
 
         String inClause = '\'' + String.join(new List<String>(agencyIds), '\',\'') + '\'';
 
-        String sql = 'SELECT SUM(' + valueField + ') AS totalValue '
+        String sql = 'SELECT SUM(' + valueField + ') AS total_value '
                    + 'FROM ' + ciName + ' '
                    + 'WHERE agency_id__c IN (' + inClause + ') '
                    + 'AND fiscal_year__c = \'' + period.get('year') + '\' '
@@ -124,10 +121,39 @@ public with sharing class KpiAggregationService {
 
         try {
             ConnectApi.CdpQueryOutput output = ConnectApi.CdpQuery.queryAnsiSql(input);
-            if (output != null && output.data != null && !output.data.isEmpty()) {
-                Map<String, Object> row = (Map<String, Object>) output.data[0];
-                return toDecimal(row.get('totalValue'));
+            if (output == null || output.data == null || output.data.isEmpty()) {
+                return 0;
             }
+
+            // Convert Connect API proxy result into a native Apex map via JSON.
+            // This is what dodges the platform fault observed at row.get(...) in
+            // cacheable=true contexts.
+            String dataJson = JSON.serialize(output.data);
+            List<Object> rows = (List<Object>) JSON.deserializeUntyped(dataJson);
+            if (rows == null || rows.isEmpty()) return 0;
+
+            Object firstRow = rows[0];
+            if (firstRow == null || !(firstRow instanceof Map<String, Object>)) {
+                return 0;
+            }
+            Map<String, Object> row = (Map<String, Object>) firstRow;
+            if (row.isEmpty()) return 0;
+
+            // Probe multiple casings - Data Cloud SQL identifier folding behaviour
+            // can vary by engine version and quoting.
+            Object v = row.get('total_value');
+            if (v == null) v = row.get('totalValue');
+            if (v == null) v = row.get('TOTAL_VALUE');
+            if (v == null) v = row.get('TOTALVALUE');
+            if (v == null) {
+                // Final fallback - grab the first value regardless of key name
+                for (Object val : row.values()) {
+                    v = val;
+                    break;
+                }
+            }
+            return toDecimal(v);
+
         } catch (Exception e) {
             System.debug(LoggingLevel.ERROR,
                 'CdpQuery SUM failed for ' + ciName + ': ' + e.getMessage());
@@ -135,9 +161,6 @@ public with sharing class KpiAggregationService {
         return 0;
     }
 
-    /**
-     * Computes a single KPI card with formatted display values and trend indicator.
-     */
     @TestVisible
     private static Map<String, Object> buildKpiCard(String kpiId, String label,
             Decimal current, Decimal prior, String valueType) {
