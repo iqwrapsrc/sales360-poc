@@ -46,7 +46,9 @@
     gap: 0.75rem;
 }
 
-/* KPI Cards Row */
+/* KPI Cards Row - responsive grid.
+   8 cards lay out as 4-per-row (2 rows on desktop). auto-fit keeps them
+   evenly sized and wraps gracefully on narrower viewports. */
 .kpi-cards-row {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -84,6 +86,9 @@
     color: #6b7280;
     letter-spacing: 0.08em;
     margin-bottom: 0.5rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .kpi-value {
@@ -123,9 +128,20 @@
     font-size: 0.875rem;
 }
 
-/* Responsive: stack on narrow screens */
-@media (max-width: 768px) {
-    .kpi-cards-row { grid-template-columns: 1fr 1fr; }
+/* Loading state */
+.kpi-loading {
+    position: relative;
+    min-height: 6rem;
+}
+
+/* Responsive: 4-per-row on wide, 2-per-row mid, 1-per-row narrow.
+   With 8 cards: 2 rows of 4 (desktop), 4 rows of 2 (tablet), 8 stacked (mobile). */
+@media (max-width: 1200px) {
+    .kpi-cards-row { grid-template-columns: repeat(4, 1fr); }
+}
+
+@media (max-width: 900px) {
+    .kpi-cards-row { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 480px) {

@@ -7,6 +7,8 @@
  * @author       Anup Chandran (Emirates Group IT)
  * @phase        Sales360 PoC - Phase 7
  * @since        May 2026
+ * @updated      May 2026 - Persona selector now displays the raw owner ID (USER_001 etc.)
+ *                          instead of the friendly label, and returns personas sorted by ID.
  */
 public with sharing class UserMappingService {
 
@@ -50,18 +52,29 @@ public with sharing class UserMappingService {
 
     /**
      * Returns all available demo personas for the Demo Persona Selector LWC.
+     * Label and value are both the owner ID (USER_001, USER_002, ...), sorted ascending.
      *
-     * @return List of maps with 'value' (Mapped_Owner_Id__c) and 'label' (Demo_Persona_Label__c)
+     * @return List of maps with 'value' and 'label' both = Mapped_Owner_Id__c
      */
     @AuraEnabled(cacheable=true)
     public static List<Map<String, String>> getAvailablePersonas() {
+        // Collect distinct owner IDs
+        Set<String> ownerIds = new Set<String>();
+        for (Test_User_Mapping__c m : Test_User_Mapping__c.getAll().values()) {
+            if (String.isNotBlank(m.Mapped_Owner_Id__c)) {
+                ownerIds.add(m.Mapped_Owner_Id__c);
+            }
+        }
+
+        // Sort so the dropdown reads USER_001, USER_002, USER_003 ...
+        List<String> sortedIds = new List<String>(ownerIds);
+        sortedIds.sort();
+
         List<Map<String, String>> personas = new List<Map<String, String>>();
-        Map<String, Test_User_Mapping__c> all = Test_User_Mapping__c.getAll();
-        for (Test_User_Mapping__c m : all.values()) {
+        for (String ownerId : sortedIds) {
             personas.add(new Map<String, String>{
-                'value' => m.Mapped_Owner_Id__c,
-                'label' => String.isNotBlank(m.Demo_Persona_Label__c) ?
-                            m.Demo_Persona_Label__c : m.Mapped_Owner_Id__c
+                'value' => ownerId,
+                'label' => ownerId
             });
         }
         return personas;

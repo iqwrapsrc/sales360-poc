@@ -1,37 +1,48 @@
 /**
- * @description  Aggregates the 4 headline KPIs (Flown Revenue, Flown PAX, Forward Revenue, Forward PAX)
- *               for the My Performance KPI Bar. Computes year-over-year deltas using deterministic
- *               arithmetic - no LLM involvement.
+ * @description  Aggregates the 8 headline KPIs for the My Performance KPI Bar.
+ *               Deterministic arithmetic - no LLM involvement.
  *
- *               This is the FAST path of the Unified Desktop - typically completes in 1-2 seconds
- *               while the AI panels below are still generating.
+ *               KPI set:
+ *                 1. Flown Revenue        (Flown_Revenue_By_Agency__cio.flown_revenue_aed__c)   CURRENCY
+ *                 2. Flown PAX            (Flown_PAX_By_Agency__cio.flown_pax_count__c)          COUNT
+ *                 3. Forward Revenue      (Forward_Revenue_By_Agency__cio.forward_revenue_aed__c) CURRENCY
+ *                 4. Forward PAX          (Forward_PAX_By_Agency__cio.forward_pax_count__c)       COUNT
+ *                 5. Flown Yield          (Flown_Yield_By_Agency__cio.flown_yield_aed__c)         CURRENCY (avg)
+ *                 6. Flown Bookings       (Flown_Bookings_By_Agency__cio.flown_bookings_count__c) COUNT
+ *                 7. Target Attainment    (FY_Target_Attainment_By_Agency__cio.target_attainment_ratio__c) PERCENT - YEAR ONLY
+ *                 8. Market Share         (EK_Market_Share_By_OD_Pair__cio.ek_market_share_ratio__c) PERCENT (avg, by od_pair)
  *
  * @author       Anup Chandran (Emirates Group IT)
  * @phase        Sales360 PoC - Phase 7
  * @since        May 2026
- * @updated      May 2026 - Hardened sumCI() against Connect API proxy fault in @AuraEnabled(cacheable=true)
- *                          context. The platform-level "Internal Salesforce.com Error" fault was
- *                          observed at row.get(alias) immediately after a successful CdpQuery SUM
- *                          aggregation, bypassing the try/catch. Defensive JSON serialize/deserialize
- *                          converts the Connect API result proxy into a native Apex HashMap before
- *                          key access; snake_case alias matches Data Cloud's Trino-based identifier
- *                          folding; multi-casing key lookup tolerates engine behaviour drift.
+ * @updated      May 2026 - Expanded 4 -> 8 cards. Reuses the proven access pattern:
+ *                          ConnectApi.CdpQuery rows are ApexMapWrapper (cannot cast to Map or
+ *                          JSON.serialize), so the aggregate value is read by parsing
+ *                          String.valueOf(row) for 'total_value='. Period filter uses the full
+ *                          fiscal_quarter__c token ('FY26Q1'); Target Attainment filters
+ *                          fiscal_year__c (numeric) only as that CI has no quarter dimension.
  */
 public with sharing class KpiAggregationService {
 
-    /**
-     * Returns the 4 headline KPIs with YoY deltas for the given owner and period.
-     */
     public static Map<String, Object> getMyPerformanceKpis(
             String ownerUserId, String fiscalPeriod) {
 
-        Map<String, String> currentPeriod = parseFiscalPeriod(fiscalPeriod);
-        Map<String, String> priorPeriod = computePriorYearPeriod(currentPeriod);
+        String currentPeriod = normalizePeriod(fiscalPeriod);
+        String priorPeriod = computePriorYearPeriod(currentPeriod);
+        Integer currentYear = periodToYear(currentPeriod);
+        Integer priorYear = (currentYear == null) ? null : currentYear - 1;
 
-        Map<String, Decimal> current =
-            aggregateAllKpis(ownerUserId, currentPeriod);
-        Map<String, Decimal> prior =
-            aggregateAllKpis(ownerUserId, priorPeriod);
+        // Agency-keyed metrics (quarter-filtered SUMs)
+        Map<String, Decimal> cur = aggregateAgencyKpis(ownerUserId, currentPeriod);
+        Map<String, Decimal> pri = aggregateAgencyKpis(ownerUserId, priorPeriod);
+
+        // Target Attainment - year-only, AVG of ratio
+        Decimal curAttain = avgTargetAttainment(ownerUserId, currentYear);
+        Decimal priAttain = avgTargetAttainment(ownerUserId, priorYear);
+
+        // Market Share - by OD pair, AVG of ratio for the period
+        Decimal curShare = avgMarketShare(currentPeriod);
+        Decimal priShare = avgMarketShare(priorPeriod);
 
         return new Map<String, Object>{
             'schemaVersion' => '1.0',
@@ -44,121 +55,165 @@ public with sharing class KpiAggregationService {
             },
             'kpis' => new List<Map<String, Object>>{
                 buildKpiCard('FLOWN_REVENUE', 'Flown Revenue',
-                    current.get('flownRevenue'), prior.get('flownRevenue'),
-                    'CURRENCY'),
+                    cur.get('flownRevenue'), pri.get('flownRevenue'), 'CURRENCY'),
                 buildKpiCard('FLOWN_PAX', 'Flown PAX',
-                    current.get('flownPax'), prior.get('flownPax'),
-                    'COUNT'),
+                    cur.get('flownPax'), pri.get('flownPax'), 'COUNT'),
                 buildKpiCard('FORWARD_REVENUE', 'Forward Revenue',
-                    current.get('forwardRevenue'), prior.get('forwardRevenue'),
-                    'CURRENCY'),
+                    cur.get('forwardRevenue'), pri.get('forwardRevenue'), 'CURRENCY'),
                 buildKpiCard('FORWARD_PAX', 'Forward PAX',
-                    current.get('forwardPax'), prior.get('forwardPax'),
-                    'COUNT')
+                    cur.get('forwardPax'), pri.get('forwardPax'), 'COUNT'),
+                buildKpiCard('FLOWN_YIELD', 'Flown Yield',
+                    cur.get('flownYield'), pri.get('flownYield'), 'CURRENCY'),
+                buildKpiCard('FLOWN_BOOKINGS', 'Flown Bookings',
+                    cur.get('flownBookings'), pri.get('flownBookings'), 'COUNT'),
+                buildKpiCard('TARGET_ATTAINMENT', 'Target Attainment',
+                    curAttain, priAttain, 'PERCENT'),
+                buildKpiCard('MARKET_SHARE', 'EK Market Share',
+                    curShare, priShare, 'PERCENT')
             }
         };
     }
 
+    /**
+     * Six agency-keyed SUM metrics for one period.
+     * Yield is averaged (it's a per-unit rate, summing makes no sense) - handled in sumOrAvgCI.
+     */
     @TestVisible
-    private static Map<String, Decimal> aggregateAllKpis(
-            String ownerUserId, Map<String, String> period) {
+    private static Map<String, Decimal> aggregateAgencyKpis(
+            String ownerUserId, String period) {
 
-        Map<String, Decimal> result = new Map<String, Decimal>{
-            'flownRevenue' => 0,
-            'flownPax' => 0,
-            'forwardRevenue' => 0,
-            'forwardPax' => 0
+        Map<String, Decimal> r = new Map<String, Decimal>{
+            'flownRevenue' => 0, 'flownPax' => 0,
+            'forwardRevenue' => 0, 'forwardPax' => 0,
+            'flownYield' => 0, 'flownBookings' => 0
         };
 
-        result.put('flownRevenue', sumCI(ownerUserId, period,
-            'Flown_Revenue_By_Agency__cio', 'flown_revenue_aed__c'));
-        result.put('flownPax', sumCI(ownerUserId, period,
-            'Flown_PAX_By_Agency__cio', 'flown_pax__c'));
-        result.put('forwardRevenue', sumCI(ownerUserId, period,
-            'Forward_Revenue_By_Agency__cio', 'forward_revenue_aed__c'));
-        result.put('forwardPax', sumCI(ownerUserId, period,
-            'Forward_PAX_By_Agency__cio', 'forward_pax__c'));
+        r.put('flownRevenue', sumCI(ownerUserId, period,
+            'Flown_Revenue_By_Agency__cio', 'flown_revenue_aed__c', 'SUM'));
+        r.put('flownPax', sumCI(ownerUserId, period,
+            'Flown_PAX_By_Agency__cio', 'flown_pax_count__c', 'SUM'));
+        r.put('forwardRevenue', sumCI(ownerUserId, period,
+            'Forward_Revenue_By_Agency__cio', 'forward_revenue_aed__c', 'SUM'));
+        r.put('forwardPax', sumCI(ownerUserId, period,
+            'Forward_PAX_By_Agency__cio', 'forward_pax_count__c', 'SUM'));
+        r.put('flownYield', sumCI(ownerUserId, period,
+            'Flown_Yield_By_Agency__cio', 'flown_yield_aed__c', 'AVG'));
+        r.put('flownBookings', sumCI(ownerUserId, period,
+            'Flown_Bookings_By_Agency__cio', 'flown_bookings_count__c', 'SUM'));
 
-        return result;
+        return r;
     }
 
     /**
-     * Returns the SUM of a single CI's value field across all agencies owned by the user.
-     *
-     * Hardening notes (May 2026):
-     * - The result row from ConnectApi.CdpQuery is a proxy object, not a native HashMap.
-     *   In @AuraEnabled(cacheable=true) context this proxy can trip a platform-level
-     *   "Internal Salesforce.com Error" fault on Map.get() which bypasses try/catch.
-     *   We serialize/deserialize through JSON to materialize a native HashMap before
-     *   any key access.
-     * - Data Cloud's Trino-based SQL engine folds unquoted identifiers to lowercase,
-     *   so the alias 'totalValue' would arrive as 'totalvalue'. We use snake_case
-     *   'total_value' as the canonical alias and probe multiple casings on read.
+     * Aggregate (SUM or AVG) of a CI value field across the user's agencies for a quarter.
+     * period is the full fiscal token e.g. 'FY26Q1' matching fiscal_quarter__c directly.
      */
     @TestVisible
-    private static Decimal sumCI(String ownerUserId, Map<String, String> period,
-                                  String ciName, String valueField) {
+    private static Decimal sumCI(String ownerUserId, String period,
+                                  String ciName, String valueField, String aggFn) {
+
+        if (String.isBlank(period)) return 0;
 
         List<SObject> agencies = Database.query(
-            'SELECT agency_id__c FROM Agency__dlm ' +
-            'WHERE owner_user_id__c = :ownerUserId'
+            'SELECT agency_id__c FROM Agency__dlm WHERE owner_user_id__c = :ownerUserId'
         );
         if (agencies.isEmpty()) return 0;
 
         Set<String> agencyIds = new Set<String>();
         for (SObject a : agencies) agencyIds.add((String) a.get('agency_id__c'));
-
         String inClause = '\'' + String.join(new List<String>(agencyIds), '\',\'') + '\'';
 
-        String sql = 'SELECT SUM(' + valueField + ') AS total_value '
+        String fn = ('AVG'.equals(aggFn)) ? 'AVG' : 'SUM';
+        String sql = 'SELECT ' + fn + '(' + valueField + ') AS total_value '
                    + 'FROM ' + ciName + ' '
                    + 'WHERE agency_id__c IN (' + inClause + ') '
-                   + 'AND fiscal_year__c = \'' + period.get('year') + '\' '
-                   + 'AND fiscal_quarter__c = \'' + period.get('quarter') + '\'';
+                   + 'AND fiscal_quarter__c = \'' + String.escapeSingleQuotes(period) + '\'';
 
+        return runScalar(sql, ciName + '/' + period);
+    }
+
+    /**
+     * AVG of target_attainment_ratio across the user's agencies for a fiscal YEAR.
+     * FY_Target_Attainment_By_Agency__cio has no quarter dimension and fiscal_year__c is numeric.
+     */
+    @TestVisible
+    private static Decimal avgTargetAttainment(String ownerUserId, Integer fiscalYear) {
+        if (fiscalYear == null) return 0;
+
+        List<SObject> agencies = Database.query(
+            'SELECT agency_id__c FROM Agency__dlm WHERE owner_user_id__c = :ownerUserId'
+        );
+        if (agencies.isEmpty()) return 0;
+
+        Set<String> agencyIds = new Set<String>();
+        for (SObject a : agencies) agencyIds.add((String) a.get('agency_id__c'));
+        String inClause = '\'' + String.join(new List<String>(agencyIds), '\',\'') + '\'';
+
+        // fiscal_year__c is a NUMBER - no quotes
+        String sql = 'SELECT AVG(target_attainment_ratio__c) AS total_value '
+                   + 'FROM FY_Target_Attainment_By_Agency__cio '
+                   + 'WHERE agency_id__c IN (' + inClause + ') '
+                   + 'AND fiscal_year__c = ' + fiscalYear;
+
+        Decimal ratio = runScalar(sql, 'Attainment/' + fiscalYear);
+        // target_attainment_ratio__c is already stored as a 0..100 percentage
+        // (NOT a 0..1 fraction), so no x100 scaling here.
+        return (ratio == null) ? 0 : ratio;
+    }
+
+    /**
+     * AVG of ek_market_share_ratio across all OD pairs for the period (blended share).
+     * EK_Market_Share_By_OD_Pair__cio is keyed by od_pair_id__c, not agency.
+     */
+    @TestVisible
+    private static Decimal avgMarketShare(String period) {
+        if (String.isBlank(period)) return 0;
+        String sql = 'SELECT AVG(ek_market_share_ratio__c) AS total_value '
+                   + 'FROM EK_Market_Share_By_OD_Pair__cio '
+                   + 'WHERE fiscal_quarter__c = \'' + String.escapeSingleQuotes(period) + '\'';
+        Decimal ratio = runScalar(sql, 'MarketShare/' + period);
+        return (ratio == null) ? 0 : ratio * 100;
+    }
+
+    /**
+     * Executes a single-column aggregate query and returns the numeric value.
+     * Connect API rows are ApexMapWrapper - read via String.valueOf parse (no cast, no JSON).
+     */
+    @TestVisible
+    private static Decimal runScalar(String sql, String tag) {
         ConnectApi.CdpQueryInput input = new ConnectApi.CdpQueryInput();
         input.sql = sql;
-
         try {
             ConnectApi.CdpQueryOutput output = ConnectApi.CdpQuery.queryAnsiSql(input);
             if (output == null || output.data == null || output.data.isEmpty()) {
                 return 0;
             }
-
-            // Convert Connect API proxy result into a native Apex map via JSON.
-            // This is what dodges the platform fault observed at row.get(...) in
-            // cacheable=true contexts.
-            String dataJson = JSON.serialize(output.data);
-            List<Object> rows = (List<Object>) JSON.deserializeUntyped(dataJson);
-            if (rows == null || rows.isEmpty()) return 0;
-
-            Object firstRow = rows[0];
-            if (firstRow == null || !(firstRow instanceof Map<String, Object>)) {
-                return 0;
-            }
-            Map<String, Object> row = (Map<String, Object>) firstRow;
-            if (row.isEmpty()) return 0;
-
-            // Probe multiple casings - Data Cloud SQL identifier folding behaviour
-            // can vary by engine version and quoting.
-            Object v = row.get('total_value');
-            if (v == null) v = row.get('totalValue');
-            if (v == null) v = row.get('TOTAL_VALUE');
-            if (v == null) v = row.get('TOTALVALUE');
-            if (v == null) {
-                // Final fallback - grab the first value regardless of key name
-                for (Object val : row.values()) {
-                    v = val;
-                    break;
-                }
-            }
-            return toDecimal(v);
-
+            return extractTotalValue(String.valueOf(output.data[0]));
         } catch (Exception e) {
-            System.debug(LoggingLevel.ERROR,
-                'CdpQuery SUM failed for ' + ciName + ': ' + e.getMessage());
+            System.debug(LoggingLevel.ERROR, 'CdpQuery failed for ' + tag + ': ' + e.getMessage());
         }
         return 0;
+    }
+
+    @TestVisible
+    private static Decimal extractTotalValue(String rowStr) {
+        if (String.isBlank(rowStr)) return 0;
+        String marker = 'total_value=';
+        Integer p = rowStr.indexOf(marker);
+        if (p < 0) return 0;
+        String rest = rowStr.substring(p + marker.length());
+        Integer endPos = rest.length();
+        Integer bracePos = rest.indexOf('}');
+        Integer commaPos = rest.indexOf(',');
+        if (bracePos >= 0) endPos = Math.min(endPos, bracePos);
+        if (commaPos >= 0) endPos = Math.min(endPos, commaPos);
+        String token = rest.substring(0, endPos).trim();
+        if (String.isBlank(token) || token == 'null') return 0;
+        try {
+            return Decimal.valueOf(token);
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     @TestVisible
@@ -170,19 +225,14 @@ public with sharing class KpiAggregationService {
 
         Decimal yoyPct;
         String trend;
-
         if (prior == 0) {
             yoyPct = null;
             trend = 'FLAT';
         } else {
             yoyPct = ((current - prior) / prior * 100).setScale(1);
-            if (yoyPct > 0.5) {
-                trend = 'UP';
-            } else if (yoyPct < -0.5) {
-                trend = 'DOWN';
-            } else {
-                trend = 'FLAT';
-            }
+            if (yoyPct > 0.5) trend = 'UP';
+            else if (yoyPct < -0.5) trend = 'DOWN';
+            else trend = 'FLAT';
         }
 
         return new Map<String, Object>{
@@ -199,19 +249,15 @@ public with sharing class KpiAggregationService {
     @TestVisible
     private static String formatValue(Decimal value, String type) {
         if (value == null) return '-';
-        if ('CURRENCY'.equals(type)) {
-            if (value >= 1000000) {
-                return 'AED ' + (value / 1000000).setScale(1) + 'M';
-            } else if (value >= 1000) {
-                return 'AED ' + (value / 1000).setScale(1) + 'K';
-            }
+        if ('PERCENT'.equals(type)) {
+            return value.setScale(1) + '%';
+        } else if ('CURRENCY'.equals(type)) {
+            if (value >= 1000000) return 'AED ' + (value / 1000000).setScale(1) + 'M';
+            if (value >= 1000) return 'AED ' + (value / 1000).setScale(1) + 'K';
             return 'AED ' + value.setScale(0);
-        } else {
-            if (value >= 1000000) {
-                return (value / 1000000).setScale(1) + 'M';
-            } else if (value >= 1000) {
-                return (value / 1000).setScale(1) + 'K';
-            }
+        } else { // COUNT
+            if (value >= 1000000) return (value / 1000000).setScale(1) + 'M';
+            if (value >= 1000) return (value / 1000).setScale(1) + 'K';
             return String.valueOf(value.intValue());
         }
     }
@@ -224,39 +270,37 @@ public with sharing class KpiAggregationService {
     }
 
     @TestVisible
-    private static Map<String, String> parseFiscalPeriod(String fiscalPeriod) {
-        Map<String, String> parts = new Map<String, String>();
-        if (String.isBlank(fiscalPeriod) || fiscalPeriod.length() < 6) {
-            parts.put('year', '2026');
-            parts.put('quarter', '1');
-            return parts;
-        }
-        String year = '20' + fiscalPeriod.substring(2, 4);
-        String quarter = fiscalPeriod.right(1);
-        parts.put('year', year);
-        parts.put('quarter', quarter);
-        return parts;
+    private static String normalizePeriod(String fiscalPeriod) {
+        if (String.isBlank(fiscalPeriod)) return 'FY26Q1';
+        String clean = fiscalPeriod.deleteWhitespace().toUpperCase();
+        if (clean.contains('Q')) return clean;
+        return clean + 'Q1';
     }
 
     @TestVisible
-    private static Map<String, String> computePriorYearPeriod(
-            Map<String, String> currentPeriod) {
-        Map<String, String> prior = new Map<String, String>();
-        Integer currentYear = Integer.valueOf(currentPeriod.get('year'));
-        prior.put('year', String.valueOf(currentYear - 1));
-        prior.put('quarter', currentPeriod.get('quarter'));
-        return prior;
-    }
-
-    @TestVisible
-    private static Decimal toDecimal(Object value) {
-        if (value == null) return 0;
-        if (value instanceof Decimal) return (Decimal) value;
-        if (value instanceof Integer) return (Decimal) ((Integer) value);
+    private static String computePriorYearPeriod(String period) {
+        if (String.isBlank(period) || !period.startsWith('FY')) return null;
         try {
-            return Decimal.valueOf(String.valueOf(value));
+            String yy = period.substring(2, 4);
+            Integer yearNum = Integer.valueOf(yy);
+            String suffix = period.substring(4);
+            String priorYY = String.valueOf(yearNum - 1).leftPad(2, '0');
+            return 'FY' + priorYY + suffix;
         } catch (Exception e) {
-            return 0;
+            return null;
+        }
+    }
+
+    /**
+     * Extracts the full 4-digit fiscal year from a period token, e.g. 'FY26Q1' -> 2026.
+     */
+    @TestVisible
+    private static Integer periodToYear(String period) {
+        if (String.isBlank(period) || !period.startsWith('FY')) return null;
+        try {
+            return 2000 + Integer.valueOf(period.substring(2, 4));
+        } catch (Exception e) {
+            return null;
         }
     }
 }
